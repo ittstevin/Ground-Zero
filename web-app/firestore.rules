@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Allow public read access to usernames for availability checking
+      allow read: if true;
+      // Allow users to write their own document or admins to write any document
+      allow write: if isAdmin() || request.auth.uid == userId;
+      // Allow querying usernames for availability checking
+      allow list: if true;
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin() || 
+        (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // Consoles collection
+    match /consoles/{consoleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Tournaments collection
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Tournament registrations
+    match /tournament_registrations/{registrationId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Support tickets
+    match /support_tickets/{ticketId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Shop products
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+  }
+} 
