@@ -1,11 +1,8 @@
 {
   "version": 2,
-  "framework": "create-react-app",
-  "buildCommand": "cd web-app && npm install && npm run build",
-  "outputDirectory": "web-app/build",
   "builds": [
     {
-      "src": "web-app/package.json",
+      "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "build"
@@ -15,19 +12,19 @@
   "routes": [
     {
       "src": "/static/(.*)",
-      "dest": "web-app/build/static/$1"
+      "dest": "/static/$1"
     },
     {
       "src": "/favicon.ico",
-      "dest": "web-app/build/favicon.ico"
+      "dest": "/favicon.ico"
     },
     {
       "src": "/manifest.json",
-      "dest": "web-app/build/manifest.json"
+      "dest": "/manifest.json"
     },
     {
       "src": "/(.*)",
-      "dest": "web-app/build/index.html"
+      "dest": "/index.html"
     }
   ]
 } 
