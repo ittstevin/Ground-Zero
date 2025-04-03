@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "web-app/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "web-app/build/static/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "web-app/build/favicon.ico"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "web-app/build/manifest.json"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "web-app/build/index.html"
+    }
+  ]
+} 
