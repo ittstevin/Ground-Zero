@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "framework": "create-react-app",
+  "buildCommand": "cd web-app && npm install && npm run build",
+  "outputDirectory": "web-app/build",
   "builds": [
     {
       "src": "web-app/package.json",
