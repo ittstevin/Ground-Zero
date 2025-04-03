@@ -120,6 +120,99 @@ function BookingPage() {
     setActiveStep((prevStep) => prevStep - 1);
   };
 
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Validate required fields
+      if (!selectedConsole || !selectedConsole.id) {
+        throw new Error('Please select a console');
+      }
+
+      if (!bookingData.date || !bookingData.time) {
+        throw new Error('Please select a date and time');
+      }
+
+      if (!bookingData.duration) {
+        throw new Error('Please select a duration');
+      }
+
+      if (!bookingData.name || !bookingData.phone || !bookingData.email) {
+        throw new Error('Please fill in all required contact information');
+      }
+
+      // Format phone number to include country code
+      const formattedPhone = bookingData.phone.startsWith('254') 
+        ? bookingData.phone 
+        : `254${bookingData.phone.substring(1)}`;
+
+      // Calculate amount based on console's price per hour
+      const amount = parseInt(bookingData.duration) * selectedConsole.pricePerHour;
+
+      // Format the date and time into a single ISO string
+      const [year, month, day] = bookingData.date.split('-');
+      const [hours, minutes] = bookingData.time.split(':');
+      
+      // Create date in local timezone
+      const startDateTime = new Date(year, month - 1, day, hours, minutes);
+      
+      // Convert to UTC ISO string
+      const utcStartDateTime = new Date(startDateTime.getTime() - startDateTime.getTimezoneOffset() * 60000);
+      
+      if (isNaN(utcStartDateTime.getTime())) {
+        throw new Error('Invalid date or time format');
+      }
+
+      // Validate console ID format
+      if (!/^[a-zA-Z0-9_-]+$/.test(selectedConsole.id)) {
+        throw new Error('Invalid console ID format');
+      }
+
+      // Ensure console ID is a string and not empty
+      const consoleId = String(selectedConsole.id).trim();
+      if (!consoleId) {
+        throw new Error('Console ID cannot be empty');
+      }
+
+      const formattedBookingData = {
+        consoleId,
+        startTime: utcStartDateTime.toISOString(),
+        duration: parseInt(bookingData.duration),
+        name: bookingData.name,
+        phone: formattedPhone,
+        email: bookingData.email,
+        notes: bookingData.notes
+      };
+
+      console.log('Selected console:', selectedConsole);
+      console.log('Console ID:', consoleId);
+      console.log('Booking data:', formattedBookingData);
+
+      const response = await createBooking(formattedBookingData);
+      console.log('Booking response:', response);
+      
+      // Show success message
+      setSuccess('Booking created successfully!');
+      // Reset form
+      setBookingData({
+        date: '',
+        time: '',
+        duration: '',
+        name: '',
+        phone: '',
+        email: '',
+        notes: ''
+      });
+      setSelectedConsole(null);
+    } catch (error) {
+      console.error('Booking error:', error);
+      setError(error.message || 'Failed to create booking. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePayment = async () => {
     try {
       setLoading(true);

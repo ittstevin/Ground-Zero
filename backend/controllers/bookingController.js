@@ -4,47 +4,32 @@ const db = admin.firestore();
 // Create a new booking
 exports.createBooking = async (req, res) => {
   try {
-    console.log('Received booking request:', req.body); // Debug log
+    console.log('Received booking request:', req.body);
     const { consoleId, startTime, duration, name, phone, email, notes } = req.body;
     
     // Validate required fields
     if (!consoleId || !startTime || !duration) {
-      console.log('Missing required fields:', { consoleId, startTime, duration }); // Debug log
+      console.log('Missing required fields:', { consoleId, startTime, duration });
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Log all consoles before checking specific one
-    console.log('Fetching all consoles...'); // Debug log
-    const allConsoles = await db.collection('consoles').get();
-    console.log('All consoles in database:', allConsoles.docs.map(doc => ({
-      id: doc.id,
-      name: doc.data().name,
-      status: doc.data().status,
-      pricePerHour: doc.data().pricePerHour
-    })));
-
-    // Check if console is available
-    console.log('Checking console availability for ID:', consoleId); // Debug log
-    console.log('Console ID type:', typeof consoleId); // Debug log
-    console.log('Console ID length:', consoleId.length); // Debug log
-    
     // Validate consoleId format
     if (!consoleId || typeof consoleId !== 'string' || consoleId.length === 0) {
-      console.log('Invalid console ID format:', consoleId); // Debug log
+      console.log('Invalid console ID format:', consoleId);
       return res.status(400).json({ error: 'Invalid console ID format' });
     }
 
     // Ensure consoleId is a valid Firestore document ID
     if (!/^[a-zA-Z0-9_-]+$/.test(consoleId)) {
-      console.log('Invalid console ID characters:', consoleId); // Debug log
+      console.log('Invalid console ID characters:', consoleId);
       return res.status(400).json({ error: 'Invalid console ID characters' });
     }
 
     try {
-      console.log('Creating Firestore document reference...'); // Debug log
-      console.log('Console ID before doc creation:', consoleId); // Debug log
-      console.log('Console ID type:', typeof consoleId); // Debug log
-      console.log('Console ID length:', consoleId.length); // Debug log
+      console.log('Creating Firestore document reference...');
+      console.log('Console ID before doc creation:', consoleId);
+      console.log('Console ID type:', typeof consoleId);
+      console.log('Console ID length:', consoleId.length);
       
       // Log the full path we're trying to access
       const collectionPath = 'consoles';
@@ -52,16 +37,16 @@ exports.createBooking = async (req, res) => {
       console.log('Attempting to access Firestore path:', `${collectionPath}/${documentPath}`);
       
       const consoleRef = db.collection(collectionPath).doc(documentPath);
-      console.log('Console reference created successfully'); // Debug log
-      console.log('Console reference path:', consoleRef.path); // Debug log
-      console.log('Console reference ID:', consoleRef.id); // Debug log
+      console.log('Console reference created successfully');
+      console.log('Console reference path:', consoleRef.path);
+      console.log('Console reference ID:', consoleRef.id);
       
-      console.log('Fetching console document...'); // Debug log
+      console.log('Fetching console document...');
       const consoleDoc = await consoleRef.get();
-      console.log('Console document exists:', consoleDoc.exists); // Debug log
+      console.log('Console document exists:', consoleDoc.exists);
       
       if (!consoleDoc.exists) {
-        console.log('Console not found:', consoleId); // Debug log
+        console.log('Console not found:', consoleId);
         return res.status(404).json({ error: 'Console not found' });
       }
 
@@ -70,7 +55,7 @@ exports.createBooking = async (req, res) => {
 
       // Check if console is available
       if (consoleData.status !== 'available') {
-        console.log('Console is not available:', { status: consoleData.status }); // Debug log
+        console.log('Console is not available:', { status: consoleData.status });
         return res.status(400).json({ error: 'Console is not available for booking' });
       }
 
@@ -78,18 +63,13 @@ exports.createBooking = async (req, res) => {
       const start = new Date(startTime);
       const now = new Date();
       
-      // Convert both dates to UTC timestamps for comparison
-      const startTimestamp = start.getTime();
-      const nowTimestamp = now.getTime();
+      if (isNaN(start.getTime())) {
+        console.log('Invalid start time:', startTime);
+        return res.status(400).json({ error: 'Invalid start time format' });
+      }
       
-      console.log('Booking time validation:', { 
-        start: new Date(startTimestamp).toISOString(), 
-        now: new Date(nowTimestamp).toISOString(),
-        startTimestamp,
-        nowTimestamp
-      }); // Debug log
-      
-      if (startTimestamp < nowTimestamp) {
+      if (start < now) {
+        console.log('Booking time is in the past:', { start, now });
         return res.status(400).json({ error: 'Cannot book in the past' });
       }
 
@@ -102,12 +82,12 @@ exports.createBooking = async (req, res) => {
         .get();
 
       if (!overlappingBookings.empty) {
-        console.log('Overlapping bookings found'); // Debug log
+        console.log('Overlapping bookings found');
         return res.status(400).json({ error: 'Console is already booked for this time slot' });
       }
 
       // Calculate end time
-      const endTime = new Date(startTimestamp + duration * 60 * 60 * 1000); // Convert hours to milliseconds
+      const endTime = new Date(start.getTime() + duration * 60 * 60 * 1000);
 
       // Create booking
       const bookingRef = await db.collection('bookings').add({
@@ -124,18 +104,18 @@ exports.createBooking = async (req, res) => {
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      console.log('Booking created successfully:', bookingRef.id); // Debug log
+      console.log('Booking created successfully:', bookingRef.id);
       res.status(201).json({ 
         id: bookingRef.id,
         message: 'Booking created successfully'
       });
     } catch (error) {
       console.error('Error checking console:', error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Error checking console availability' });
     }
   } catch (error) {
     console.error('Error creating booking:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Failed to create booking' });
   }
 };
 
