@@ -18,7 +18,8 @@ import {
 import { Search as SearchIcon } from '@mui/icons-material';
 import ProductCard from '../components/ProductCard';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import { collection, query, getDocs, where, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const MarketplacePage = () => {
   const theme = useTheme();
@@ -41,26 +42,77 @@ const MarketplacePage = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
+      console.log('Starting to fetch products from Firestore...');
       
+      // Check if Firebase is initialized
+      if (!db) {
+        throw new Error('Firebase Firestore is not initialized');
+      }
+      
+      const productsRef = collection(db, 'products');
+      console.log('Products collection reference created');
+      
+      // Start with a base query
+      let q = query(productsRef);
+      
+      // Apply filters based on selected platform and category
       if (selectedPlatform !== 'all') {
-        params.append('platform', selectedPlatform);
+        console.log('Applying platform filter:', selectedPlatform);
+        q = query(q, where('platform', '==', selectedPlatform));
       }
       
       if (selectedCategory !== 'all') {
-        params.append('category', selectedCategory);
+        console.log('Applying category filter:', selectedCategory);
+        q = query(q, where('category', '==', selectedCategory));
       }
       
+      // Apply search filter if search query exists
       if (searchQuery) {
-        params.append('search', searchQuery);
+        console.log('Applying search filter:', searchQuery);
+        q = query(q, where('name', '>=', searchQuery), where('name', '<=', searchQuery + '\uf8ff'));
       }
-
-      const response = await axios.get(`/api/products?${params.toString()}`);
-      setProducts(response.data);
-      setError(null);
+      
+      // Add ordering
+      q = query(q, orderBy('name'));
+      
+      console.log('Executing Firestore query...');
+      const querySnapshot = await getDocs(q);
+      console.log('Query completed, number of documents:', querySnapshot.size);
+      
+      if (querySnapshot.empty) {
+        console.log('No products found matching the criteria');
+        setProducts([]);
+        setError('No products available matching your criteria.');
+      } else {
+        const productsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log('Products data processed:', productsData.length);
+        console.log('First product sample:', productsData[0]);
+        setProducts(productsData);
+        setError(null);
+      }
     } catch (err) {
-      setError('Failed to fetch products. Please try again later.');
       console.error('Error fetching products:', err);
+      console.error('Error details:', {
+        code: err.code,
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
+      
+      // Provide more specific error messages based on the error type
+      if (err.code === 'permission-denied') {
+        setError('Access denied. Please check if you have the necessary permissions.');
+      } else if (err.code === 'unavailable') {
+        setError('Service is currently unavailable. Please try again later.');
+      } else if (err.code === 'not-found') {
+        setError('Products collection not found. Please contact support.');
+      } else {
+        setError('Failed to load products. Please try again later.');
+      }
     } finally {
       setLoading(false);
     }

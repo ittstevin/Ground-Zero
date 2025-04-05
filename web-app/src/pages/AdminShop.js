@@ -49,6 +49,7 @@ const AdminShop = () => {
 
   useEffect(() => {
     fetchProducts();
+    createTestProductIfNoneExist();
   }, []);
 
   const fetchProducts = async () => {
@@ -67,6 +68,38 @@ const AdminShop = () => {
     } catch (err) {
       setError('Error fetching products: ' + err.message);
       setLoading(false);
+    }
+  };
+
+  const createTestProductIfNoneExist = async () => {
+    try {
+      console.log('Checking if products collection is empty...');
+      const productsRef = collection(db, 'products');
+      const querySnapshot = await getDocs(productsRef);
+      
+      if (querySnapshot.empty) {
+        console.log('No products found, creating test product...');
+        const testProduct = {
+          name: 'Test Gaming Product',
+          description: 'This is a test product to verify the shop functionality.',
+          price: 49.99,
+          category: 'Game Key',
+          platform: 'PlayStation',
+          stock: 100,
+          image: 'https://via.placeholder.com/300x200?text=Test+Product',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        await addDoc(productsRef, testProduct);
+        console.log('Test product created successfully');
+        fetchProducts(); // Refresh the products list
+      } else {
+        console.log('Products already exist in the database');
+      }
+    } catch (err) {
+      console.error('Error creating test product:', err);
+      setError('Error creating test product: ' + err.message);
     }
   };
 

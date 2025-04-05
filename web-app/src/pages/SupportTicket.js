@@ -46,7 +46,7 @@ const SupportTicket = () => {
 
   const fetchTickets = async () => {
     try {
-      const ticketsRef = collection(db, 'supportTickets');
+      const ticketsRef = collection(db, 'support_tickets');
       const q = query(
         ticketsRef,
         where('userId', '==', currentUser.uid),
@@ -82,7 +82,7 @@ const SupportTicket = () => {
         updatedAt: serverTimestamp()
       };
 
-      await addDoc(collection(db, 'supportTickets'), ticketData);
+      await addDoc(collection(db, 'support_tickets'), ticketData);
       setNewTicket({ subject: '', message: '' });
       fetchTickets();
     } catch (error) {
@@ -95,7 +95,7 @@ const SupportTicket = () => {
     if (!chatMessage.trim()) return;
 
     try {
-      const ticketRef = doc(db, 'supportTickets', selectedTicket.id);
+      const ticketRef = doc(db, 'support_tickets', selectedTicket.id);
       const newMessage = {
         text: chatMessage,
         senderId: currentUser.uid,

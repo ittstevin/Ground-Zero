@@ -118,7 +118,7 @@ function AdminDashboard() {
 
   const fetchSupportTickets = async () => {
     try {
-      const ticketsRef = collection(db, 'supportTickets');
+      const ticketsRef = collection(db, 'support_tickets');
       const q = query(ticketsRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       
@@ -201,7 +201,7 @@ function AdminDashboard() {
 
   const handleTicketStatusChange = async (ticketId, newStatus) => {
     try {
-      const ticketRef = doc(db, 'supportTickets', ticketId);
+      const ticketRef = doc(db, 'support_tickets', ticketId);
       await updateDoc(ticketRef, {
         status: newStatus,
         updatedAt: new Date()

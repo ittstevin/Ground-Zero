@@ -27,7 +27,8 @@ import {
   Delete as DeleteIcon,
   AddCircle as AddCircleIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import { collection, query, getDocs, addDoc, doc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
@@ -53,9 +54,20 @@ const AdminProducts = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products');
-      setProducts(response.data);
+      console.log('Fetching products from Firestore...');
+      const productsRef = collection(db, 'products');
+      const q = query(productsRef, orderBy('name'));
+      const querySnapshot = await getDocs(q);
+      
+      const productsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log(`Fetched ${productsData.length} products`);
+      setProducts(productsData);
     } catch (error) {
+      console.error('Error fetching products:', error);
       showSnackbar('Failed to fetch products', 'error');
     }
   };
@@ -63,7 +75,18 @@ const AdminProducts = () => {
   const handleOpen = (product = null) => {
     if (product) {
       setEditingProduct(product);
-      setFormData(product);
+      setFormData({
+        name: product.name || '',
+        description: product.description || '',
+        image: product.image || '',
+        category: product.category || '',
+        platform: product.platform || '',
+        price: product.price || '',
+        originalPrice: product.originalPrice || '',
+        discount: product.discount || '',
+        stock: product.stock || '',
+        keys: product.keys || []
+      });
     } else {
       setEditingProduct(null);
       setFormData({
@@ -98,27 +121,47 @@ const AdminProducts = () => {
     e.preventDefault();
     try {
       if (editingProduct) {
-        await axios.patch(`/api/products/${editingProduct._id}`, formData);
+        // Update existing product
+        const productRef = doc(db, 'products', editingProduct.id);
+        await updateDoc(productRef, {
+          ...formData,
+          price: parseFloat(formData.price),
+          originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
+          discount: formData.discount ? parseFloat(formData.discount) : 0,
+          stock: parseInt(formData.stock),
+          updatedAt: new Date()
+        });
         showSnackbar('Product updated successfully');
       } else {
-        await axios.post('/api/products', formData);
+        // Add new product
+        await addDoc(collection(db, 'products'), {
+          ...formData,
+          price: parseFloat(formData.price),
+          originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
+          discount: formData.discount ? parseFloat(formData.discount) : 0,
+          stock: parseInt(formData.stock),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
         showSnackbar('Product added successfully');
       }
       handleClose();
       fetchProducts();
     } catch (error) {
-      showSnackbar(error.response?.data?.message || 'Operation failed', 'error');
+      console.error('Error saving product:', error);
+      showSnackbar('Operation failed: ' + error.message, 'error');
     }
   };
 
   const handleDelete = async (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await axios.delete(`/api/products/${productId}`);
+        await deleteDoc(doc(db, 'products', productId));
         showSnackbar('Product deleted successfully');
         fetchProducts();
       } catch (error) {
-        showSnackbar('Failed to delete product', 'error');
+        console.error('Error deleting product:', error);
+        showSnackbar('Failed to delete product: ' + error.message, 'error');
       }
     }
   };
@@ -127,11 +170,25 @@ const AdminProducts = () => {
     const key = prompt('Enter the game key:');
     if (key) {
       try {
-        await axios.post(`/api/products/${productId}/keys`, { keys: [key] });
+        const productRef = doc(db, 'products', productId);
+        const product = products.find(p => p.id === productId);
+        
+        if (!product) {
+          throw new Error('Product not found');
+        }
+        
+        const updatedKeys = [...(product.keys || []), key];
+        
+        await updateDoc(productRef, {
+          keys: updatedKeys,
+          updatedAt: new Date()
+        });
+        
         showSnackbar('Key added successfully');
         fetchProducts();
       } catch (error) {
-        showSnackbar('Failed to add key', 'error');
+        console.error('Error adding key:', error);
+        showSnackbar('Failed to add key: ' + error.message, 'error');
       }
     }
   };
@@ -155,7 +212,7 @@ const AdminProducts = () => {
 
       <Grid container spacing={3}>
         {products.map((product) => (
-          <Grid item key={product._id} xs={12} sm={6} md={4}>
+          <Grid item key={product.id} xs={12} sm={6} md={4}>
             <Card>
               <CardContent>
                 <Typography variant="h6">{product.name}</Typography>
@@ -176,10 +233,10 @@ const AdminProducts = () => {
                 <IconButton onClick={() => handleOpen(product)}>
                   <EditIcon />
                 </IconButton>
-                <IconButton onClick={() => handleDelete(product._id)} color="error">
+                <IconButton onClick={() => handleDelete(product.id)} color="error">
                   <DeleteIcon />
                 </IconButton>
-                <IconButton onClick={() => handleAddKey(product._id)}>
+                <IconButton onClick={() => handleAddKey(product.id)}>
                   <AddCircleIcon />
                 </IconButton>
               </CardActions>

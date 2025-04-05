@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, ShoppingCart as CartIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, getDocs, where } from 'firebase/firestore';
+import { collection, query, getDocs, where, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const ShopPage = () => {
@@ -34,31 +34,98 @@ const ShopPage = () => {
 
   useEffect(() => {
     fetchProducts();
+    checkAndCreateSampleProduct();
   }, [searchQuery]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      console.log('Starting to fetch products...');
+      
+      // Check if Firebase is initialized
+      if (!db) {
+        throw new Error('Firebase Firestore is not initialized');
+      }
+      
       const productsRef = collection(db, 'products');
+      console.log('Products collection reference created');
+      
       let q = query(productsRef);
       
       if (searchQuery) {
+        console.log('Applying search filter:', searchQuery);
         q = query(productsRef, where('name', '>=', searchQuery), where('name', '<=', searchQuery + '\uf8ff'));
       }
 
+      console.log('Executing Firestore query...');
       const querySnapshot = await getDocs(q);
-      const productsData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log('Query completed, number of documents:', querySnapshot.size);
       
-      setProducts(productsData);
-      setError(null);
+      if (querySnapshot.empty) {
+        console.log('No products found in the database');
+        setProducts([]);
+        setError('No products available at the moment.');
+      } else {
+        const productsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log('Products data processed:', productsData.length);
+        console.log('First product sample:', productsData[0]);
+        setProducts(productsData);
+        setError(null);
+      }
     } catch (err) {
       console.error('Error fetching products:', err);
-      setError('Failed to load products. Please try again later.');
+      console.error('Error details:', {
+        code: err.code,
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
+      
+      // Provide more specific error messages based on the error type
+      if (err.code === 'permission-denied') {
+        setError('Access denied. Please check if you have the necessary permissions.');
+      } else if (err.code === 'unavailable') {
+        setError('Service is currently unavailable. Please try again later.');
+      } else if (err.code === 'not-found') {
+        setError('Products collection not found. Please contact support.');
+      } else {
+        setError('Failed to load products. Please try again later.');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkAndCreateSampleProduct = async () => {
+    try {
+      console.log('Checking if products collection exists...');
+      const productsRef = collection(db, 'products');
+      const querySnapshot = await getDocs(productsRef);
+      
+      if (querySnapshot.empty) {
+        console.log('No products found, creating a sample product...');
+        await addDoc(productsRef, {
+          name: 'Sample Gaming Product',
+          description: 'This is a sample product to test the shop functionality.',
+          price: 29.99,
+          category: 'Game Key',
+          platform: 'PlayStation',
+          stock: 10,
+          image: 'https://via.placeholder.com/300x200?text=Sample+Product',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        console.log('Sample product created successfully');
+        fetchProducts(); // Refresh the products list
+      } else {
+        console.log('Products already exist in the database');
+      }
+    } catch (err) {
+      console.error('Error checking/creating sample product:', err);
     }
   };
 
